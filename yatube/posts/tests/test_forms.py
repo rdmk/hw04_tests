@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
@@ -26,11 +28,6 @@ class PostPagesTests(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
-        self.post = Post.objects.create(
-            text='test-text',
-            author=self.user,
-            group=self.group
-        )
 
     def test_create_post(self):
         Post.objects.all().delete()
@@ -43,21 +40,26 @@ class PostPagesTests(TestCase):
             data=form_data,
             follow=True
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertRedirects(
             response, reverse('posts:profile', kwargs={
                 'username': self.user
             })
         )
         self.assertEqual(Post.objects.count(), 1)
-        post = Post.objects.all()[0]
+        post = Post.objects.first()
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group.pk, form_data['group'])
         self.assertEqual(post.author, self.user)
 
     def test_edit_post(self):
+        self.post = Post.objects.create(
+            text='test-text',
+            author=self.user,
+            group=self.group
+        )
         form_data = {
-            'text': 'Тесвый текст',
+            'text': 'Тестовый текст',
             'group': self.group2.pk,
         }
         response = self.authorized_client.post(
@@ -65,12 +67,12 @@ class PostPagesTests(TestCase):
             data=form_data,
             follow=True
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertRedirects(
             response,
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
-        post = response.context['post']
+        post = Post.objects.first()
         self.assertEqual(post.text, form_data['text'])
         self.assertEqual(post.group.pk, form_data['group'])
         self.assertEqual(post.author, self.post.author)

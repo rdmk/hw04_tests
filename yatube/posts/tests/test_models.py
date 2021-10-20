@@ -12,7 +12,7 @@ class PostModelTest(TestCase):
         super().setUpClass()
         cls.user = User.objects.create_user(username='auth')
         cls.group = Group.objects.create(
-            title='Тестовая группа',
+            title='Тестовая группа123',
             slug='Тестовый слаг',
             description='Тестовое описание',
         )
@@ -22,12 +22,13 @@ class PostModelTest(TestCase):
         )
 
     def test_models_have_correct_object_names(self):
-        """Проверяем, что у моделей корректно работает __str__."""
+        """Проверка: правильно ли отображается значение поля __str__"""
         post = PostModelTest.post
         expected = post.text
-        self.assertEqual(expected, self.post.text[:15])
+        self.assertEqual(expected, str(post))
 
     def test_models_have_correct_group_names(self):
+        """Проверка: правильно ли отображается значение поля __str__"""
         group = PostModelTest.group
         excepted = group.title
-        self.assertEqual(excepted, self.group.title)
+        self.assertEqual(excepted, str(group))

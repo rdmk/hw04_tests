@@ -8,35 +8,6 @@ from ..models import Group, Post
 User = get_user_model()
 
 
-class StaticURLTests(TestCase):
-    def setUp(self):
-        self.guest_client = Client()
-
-    def test_static_urls_exists_at_desired_location(self):
-        """Страницы доступны любому пользователю."""
-        static_urls = {
-            '/': HTTPStatus.OK,
-            '/about/author/': HTTPStatus.OK,
-            '/about/tech/': HTTPStatus.OK
-        }
-        for address, response_on_url in static_urls.items():
-            with self.subTest(address=address):
-                response = self.guest_client.get(address)
-                self.assertAlmostEqual(response.status_code, response_on_url)
-
-    def test_static_pages_have_correct_template(self):
-        """URL-адрес использует соответствующий шаблон."""
-        static_templates = {
-            '/': 'posts/index.html',
-            '/about/author/': 'about/author.html',
-            '/about/tech/': 'about/tech.html'
-        }
-        for address, template in static_templates.items():
-            with self.subTest(address=address):
-                response = self.guest_client.get(address)
-                self.assertTemplateUsed(response, template)
-
-
 class PostURLTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -53,6 +24,22 @@ class PostURLTests(TestCase):
             group=cls.group,
             pk='1234',
         )
+        cls.static_urls = {
+            '/': HTTPStatus.OK,
+            '/create/': HTTPStatus.OK,
+            f'/group/{cls.group.slug}/': HTTPStatus.OK,
+            f'/profile/{cls.user.username}/': HTTPStatus.OK,
+            f'/posts/{cls.post.pk}/': HTTPStatus.OK,
+            f'/posts/{cls.post.pk}/edit/': HTTPStatus.OK,
+        }
+        cls.templates_url_names = {
+            '/': 'posts/index.html',
+            '/create/': 'posts/create_or_update.html',
+            f'/group/{cls.group.slug}/': 'posts/group_list.html',
+            f'/profile/{cls.user.username}/': 'posts/profile.html',
+            f'/posts/{cls.post.pk}/': 'posts/post_detail.html',
+            f'/posts/{cls.post.pk}/edit/': 'posts/create_or_update.html',
+        }
 
     def setUp(self):
         self.guest_client = Client()
@@ -61,34 +48,55 @@ class PostURLTests(TestCase):
 
     def test_urls_exists_at_desired_location(self):
         """Проверка страниц на доступность."""
-        static_urls = {
-            '/': HTTPStatus.OK,
-            '/create/': HTTPStatus.OK,
-            '/group/test-slug/': HTTPStatus.OK,
-            '/profile/Test_user/': HTTPStatus.OK,
-            '/posts/1234/': HTTPStatus.OK,
-            '/posts/1234/edit/': HTTPStatus.OK,
-        }
-        for address, response_on_url in static_urls.items():
+        for address, response_on_url in self.static_urls.items():
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertEqual(response.status_code, response_on_url)
 
     def test_unexisting_page(self):
+        """Проверка: при запросе на существующую страницу вернется 404"""
         response = self.authorized_client.get('/unexisting_page/')
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
-        templates_url_names = {
-            '/': 'posts/index.html',
-            '/create/': 'posts/create_or_update.html',
-            '/group/test-slug/': 'posts/group_list.html',
-            '/profile/Test_user/': 'posts/profile.html',
-            '/posts/1234/': 'posts/post_detail.html',
-            '/posts/1234/edit/': 'posts/create_or_update.html',
-        }
-        for address, template in templates_url_names.items():
+        for address, template in self.templates_url_names.items():
             with self.subTest(address=address):
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
+
+    def test_guest_client_can_not_create_post(self):
+        """Проверка: при попытке неавторизованным пользователем создать пост
+        происходит редирект на станицу авторизации.
+        """
+        response = self.guest_client.get('/create/')
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_auth_user_can_not_edit_someone_elses_post(self):
+        """Страница по адресу posts/n/edit/ перенаправит авторизованного
+        пользователя на страницу этого поста, если он не является автором.
+        """
+        test_user = User.objects.create_user(username='New_test_user')
+        authorized_client = Client(test_user)
+        authorized_client.force_login(test_user)
+        response = authorized_client.get(
+            f'/posts/{self.post.pk}/edit/',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            f'/posts/{self.post.pk}/'
+        )
+
+    def test_guest_can_not_edit__post(self):
+        """Страница по адресу posts/n/edit/ перенаправит гостевого
+        пользователя на страницу авторизации.
+        """
+        response = self.guest_client.get(
+            f'/posts/{self.post.pk}/edit/',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            f'/auth/login/?next=/posts/{self.post.pk}/edit/'
+        )
