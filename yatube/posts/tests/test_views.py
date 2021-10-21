@@ -25,7 +25,7 @@ class PostPagesTests(TestCase):
                 group=cls.group,
                 id=i
             ))
-        cls.Test_post = Post.objects.bulk_create(cls.post_list, 13)
+        cls.test_posts = Post.objects.bulk_create(cls.post_list, 13)
         cls.index_url = reverse(
             'posts:index'
         )
@@ -33,12 +33,8 @@ class PostPagesTests(TestCase):
             'posts:group_list', kwargs={'slug': cls.group.slug}
         )
         cls.templates_pages_names = {
-            reverse(
-                'posts:index'): 'posts/index.html',
-            reverse(
-                'posts:group_list',
-                kwargs={
-                    'slug': cls.group.slug}): 'posts/group_list.html',
+            cls.index_url: 'posts/index.html',
+            cls.group_list_url: 'posts/group_list.html',
             reverse(
                 'posts:profile',
                 kwargs={'username': cls.user}): 'posts/profile.html',
@@ -54,9 +50,8 @@ class PostPagesTests(TestCase):
                 'posts:post_create'): 'posts/create_or_update.html'
         }
         cls.reverse_page_names_post = {
-            reverse('posts:index'): cls.group.slug,
-            reverse('posts:group_list', kwargs={
-                'slug': cls.group.slug}): cls.group.slug,
+            cls.index_url: cls.group.slug,
+            cls.group_list_url: cls.group.slug,
             reverse('posts:profile', kwargs={
                 'username': cls.user}): cls.group.slug
         }
@@ -81,7 +76,7 @@ class PostPagesTests(TestCase):
         post_text = object.text
         post_author = object.author
         post_group = object.group
-        self.assertEqual(post_text, self.Test_post[post_id].text)
+        self.assertEqual(post_text, self.test_posts[post_id].text)
         self.assertEqual(post_author, self.user)
         self.assertEqual(post_group, self.group)
 
@@ -106,7 +101,7 @@ class PostPagesTests(TestCase):
             post_text = object.text
             post_author = object.author
             post_group = object.group
-            self.assertEqual(post_text, self.Test_post[post_id].text)
+            self.assertEqual(post_text, self.test_posts[post_id].text)
             self.assertEqual(post_author, self.user)
             self.assertEqual(post_group, self.group)
 
@@ -114,16 +109,19 @@ class PostPagesTests(TestCase):
         """Шаблон post_detail сформирован с правильным контекстом."""
         response = self.authorized_client.get(
             reverse('posts:post_detail',
-                    kwargs={'post_id': self.Test_post[0].id}
+                    kwargs={'post_id': self.test_posts[0].id}
                     )
         )
-        self.assertEqual(response.context['post'].text, self.Test_post[0].text)
-        self.assertEqual(response.context['post'].author, self.user)
-        self.assertEqual(response.context['post'].group, self.group)
+        self.assertEqual(response.context['post'].text,
+                         self.test_posts[0].text)
+        self.assertEqual(response.context['post'].author,
+                         self.user)
+        self.assertEqual(response.context['post'].group,
+                         self.group)
 
     def test_post_edit_page_show_correct_context(self):
         """Шаблон post_edit сформирован с правильным контекстом."""
-        post_example = self.Test_post[0]
+        post_example = self.test_posts[0]
         response = self.authorized_client.get(
             reverse('posts:post_edit', kwargs={'post_id': post_example.id})
         )
@@ -138,7 +136,7 @@ class PostPagesTests(TestCase):
             reverse('posts:profile', kwargs={'username': self.user})
         ]
         # Подсчет кол-ва страниц
-        num = (len(self.Test_post) // 10) + 1
+        num = (len(self.test_posts) // 10) + 1
         for page in pages_with_paginator:
             # Если одна страница в паджинаторе, то подсчитываем кол-во постов
             if num == 1:
@@ -147,7 +145,7 @@ class PostPagesTests(TestCase):
                 )
                 self.assertEqual(
                     len(response.context['page_obj']),
-                    len(self.Test_post)
+                    len(self.test_posts)
                 )
             # Если несколько страниц, то проверяем количество на первой и
             # последних страницах
@@ -164,7 +162,7 @@ class PostPagesTests(TestCase):
                 )
                 self.assertEqual(
                     len(response_last.context['page_obj']),
-                    (len(self.Test_post) % 10)
+                    (len(self.test_posts) % 10)
                 )
 
     def test_post_in_index_group_profile_create(self):
@@ -178,13 +176,13 @@ class PostPagesTests(TestCase):
 
     def test_post_not_in_foreign_group(self):
         """Проверка: созданный пост не появился в чужой группе"""
-        Test_group = Group.objects.create(
+        test_group = Group.objects.create(
             title='test-title 2',
             slug='test-slug_2',
             description='test-decsr 2',
         )
         response = self.authorized_client.get(
-            reverse('posts:group_list', kwargs={'slug': Test_group.slug})
+            reverse('posts:group_list', kwargs={'slug': test_group.slug})
         )
         for object in response.context['page_obj']:
             post_slug = object.group.slug

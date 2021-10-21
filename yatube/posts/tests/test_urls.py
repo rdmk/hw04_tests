@@ -40,6 +40,12 @@ class PostURLTests(TestCase):
             f'/posts/{cls.post.pk}/': 'posts/post_detail.html',
             f'/posts/{cls.post.pk}/edit/': 'posts/create_or_update.html',
         }
+        cls.redirects_urls = {
+            '/create/':
+                '/auth/login/?next=/create/',
+            f'/posts/{cls.post.pk}/edit/':
+                f'/auth/login/?next=/posts/{cls.post.pk}/edit/'
+        }
 
     def setUp(self):
         self.guest_client = Client()
@@ -65,13 +71,6 @@ class PostURLTests(TestCase):
                 response = self.authorized_client.get(address)
                 self.assertTemplateUsed(response, template)
 
-    def test_guest_client_can_not_create_post(self):
-        """Проверка: при попытке неавторизованным пользователем создать пост
-        происходит редирект на станицу авторизации.
-        """
-        response = self.guest_client.get('/create/')
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
     def test_auth_user_can_not_edit_someone_elses_post(self):
         """Страница по адресу posts/n/edit/ перенаправит авторизованного
         пользователя на страницу этого поста, если он не является автором.
@@ -88,15 +87,12 @@ class PostURLTests(TestCase):
             f'/posts/{self.post.pk}/'
         )
 
-    def test_guest_can_not_edit__post(self):
-        """Страница по адресу posts/n/edit/ перенаправит гостевого
-        пользователя на страницу авторизации.
+    def test_guest_client_redirect(self):
+        """Проверка: перенаправление гостевого пользователя
+        при создании или редактирования поста.
         """
-        response = self.guest_client.get(
-            f'/posts/{self.post.pk}/edit/',
-            follow=True
-        )
-        self.assertRedirects(
-            response,
-            f'/auth/login/?next=/posts/{self.post.pk}/edit/'
-        )
+        for address, redirect in self.redirects_urls.items():
+            with self.subTest(address=address):
+                response = self.guest_client.get(address)
+                self.assertEqual(response.status_code, HTTPStatus.FOUND)
+                self.assertRedirects(response, redirect)

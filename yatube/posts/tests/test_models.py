@@ -18,17 +18,17 @@ class PostModelTest(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовая группа',
+            text='Тестовый текст12',
         )
 
     def test_models_have_correct_object_names(self):
         """Проверка: правильно ли отображается значение поля __str__"""
-        post = PostModelTest.post
-        expected = post.text
+        post = self.post
+        expected = post.text[:15]
         self.assertEqual(expected, str(post))
 
     def test_models_have_correct_group_names(self):
         """Проверка: правильно ли отображается значение поля __str__"""
-        group = PostModelTest.group
-        excepted = group.title
+        group = self.group
+        excepted = group.title[:15]
         self.assertEqual(excepted, str(group))
